@@ -14,6 +14,8 @@ import requests
 import sys
 import os
 import ConfigParser
+import argparse
+import re
 
 # Disable Certificate warning
 try:
@@ -24,13 +26,24 @@ except:
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
+##############################################################################
+# READ PARAMETERS
+##############################################################################
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument('-c', action='store', dest='config_file',help='Config file name')
+parser.add_argument('-m', action='store', dest='macaddress_file',help='MAC address file name')
+parser.add_argument('--version', action='version', version='%(prog)s 1.0')
+
+results = parser.parse_args()
 
 ##############################################################################
 # READ VARIABLES
 ##############################################################################
 
 config = ConfigParser.ConfigParser()
-config.read('macqos.conf')
+config.read(results.config_file)
 APIC_IP = config.get("APIC_Parameters","APIC_IP")
 APIC_LOGIN = config.get("APIC_Parameters","APIC_LOGIN")
 APIC_PASSWD = config.get("APIC_Parameters","APIC_PASSWD")
@@ -48,13 +61,15 @@ if PROXY == "No":
 # READ CONFIGURED MAC ADDRESSES AND PUT THEM IN AN ARRAY
 ##############################################################################
 
-macaddressfile = open("macaddresses.conf", "r")
+macaddressfile = open(results.macaddress_file, "r")
 macaddresstable = []
-i = 0
 for line in macaddressfile:
-  if i != 0:
-    macaddresstable.append(line.strip())
-  i = i + 1
+  line.strip()
+  if re.match("[0-9a-f]{2}([-:])[0-9a-f]{2}(\\1[0-9a-f]{2}){4}$", line.lower()):
+    macaddresstable.append(line)
+    print "Reading MAC address in file MAC file: %s" % line
+  else:
+    print "Bad MAC address in file MAC file: %s" % line
 
 ##############################################################################
 # Start API Session APIC_EM
@@ -99,7 +114,7 @@ def getPrioritized():
   req_list=parsed_result['response']
   prioritized_host_list = []
   for item in req_list:
-    prioritized_host_list.append([str(item["sourceIP"]),str(item["id"])])
+    prioritized_host_list.append([str(item["sourceIP"]),str(item["id"]),str(item["protocol"])])
   return prioritized_host_list;
 
 ##############################################################################
@@ -108,7 +123,9 @@ def getPrioritized():
 
 def prioritizeIp(Ip):
   url = '%s/policy/flow' % APIC_BASE
-  payload = {"flowType": "VIDEO", "sourceIP": Ip}
+  payload = {"flowType": "VIDEO", "sourceIP": Ip, "protocol": "tcp"}
+  r = requests.post(url, data=json.dumps(payload), verify=False, headers=apic_headers)
+  payload = {"flowType": "VIDEO", "sourceIP": Ip, "protocol": "udp"}
   r = requests.post(url, data=json.dumps(payload), verify=False, headers=apic_headers)
 
 ##############################################################################
