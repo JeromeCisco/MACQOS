@@ -1,0 +1,11 @@
+MACQOS
+Created by Jerome Durand - Cisco Systems
+https://github.com/JeromeCisco/MACQOS
+-----------------------------------------------------------------
+This application prioritized hosts based on their MAC address.
+MAC addresses must be added in the appropriate file (one per
+line).
+
+Program must be added in the crontab. Every time the program will
+check prioritized addresses must be kept, and new ones will be
+added in the dynamic QoS list.
